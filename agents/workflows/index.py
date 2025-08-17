@@ -1,0 +1,163 @@
+from abc import ABC, abstractmethod
+from typing import TypedDict, Any, Dict, Optional
+from dataclasses import dataclass
+from langgraph.graph import StateGraph
+from langgraph.checkpoint.memory import MemorySaver
+from langchain_core.messages import BaseMessage
+
+
+class BaseWorkflowState(TypedDict):
+    """Base state structure for all workflows"""
+    messages: list[BaseMessage]
+    user_input: Optional[Dict[str, Any]]
+    current_step: str
+    thread_id: Optional[str]
+    workflow_data: Optional[Dict[str, Any]]
+
+
+@dataclass
+class WorkflowMessage:
+    """Structured message for workflow communication"""
+    content: str
+    type: str
+    role: str
+
+
+class BaseWorkflowInterface(ABC):
+    """Abstract base class for all workflows"""
+    
+    def __init__(self):
+        self.initial_message = None
+        self.checkpointer = MemorySaver()
+        self.graph: Optional[StateGraph] = None
+        self.workflow_instance = None
+    
+    @abstractmethod
+    def init(self) -> None:
+        """Initialize the workflow graph and compile it"""
+        pass
+    
+    @abstractmethod
+    def _initialize_graph(self) -> None:
+        """Build the workflow graph structure"""
+        pass
+    
+    def save_state(self, thread_id: str, state: BaseWorkflowState) -> None:
+        """Save workflow state using checkpointer"""
+        # State is automatically saved by langgraph checkpointer
+        pass
+    
+    def resume_workflow(self, thread_id: str, message: WorkflowMessage) -> Dict[str, Any]:
+        """Resume workflow from saved state with new input"""
+        if not self.workflow_instance:
+            raise ValueError("Workflow not initialized")
+        
+        config = {"configurable": {"thread_id": thread_id}}
+
+        # Get the current interrupted state
+        curr_state = self.workflow_instance.get_state(config)
+
+
+        print(f"Current state: {curr_state}")
+        print(f"Curr_state Next: {curr_state.next}")
+
+        if not curr_state or not curr_state.next:
+            return curr_state
+
+        # Prepare the state for resumption
+        resume_state = {
+            "session_id": thread_id,
+            # "user_id": self.user_id,
+            "is_processing": True
+        }
+
+        # Preserve existing messages if available
+        if curr_state and "messages" in curr_state.values:
+            resume_state["messages"] = curr_state.values["messages"]
+        else:
+            resume_state["messages"] = [self.initial_message]
+
+        # If previous_messages are provided, append them
+        if message:
+            resume_state["messages"].append(message)
+
+        # Update the state to include the new user input
+        self.workflow_instance.update_state(config=config, values=resume_state)
+        
+        # Add new message to the workflow
+        result = self.workflow_instance.invoke(
+            None,
+            config=config
+        )
+        
+        return self._serialize_result(result)
+    
+    def start_workflow(self, message: WorkflowMessage, thread_id: str) -> Dict[str, Any]:
+        """Start a new workflow instance"""
+        if not self.workflow_instance:
+            raise ValueError("Workflow not initialized")
+        
+        config = {"configurable": {"thread_id": thread_id}}
+        
+        initial_state = {
+            "messages": [],
+            "user_input": {"content": message.content, "type": message.type, "role": message.role},
+            "current_step": "start",
+            "thread_id": thread_id,
+            "workflow_data": {}
+        }
+        
+        result = self.workflow_instance.invoke(initial_state, config=config)
+        return self._serialize_result(result)
+    
+    def get_state(self, thread_id: str) -> Optional[Dict[str, Any]]:
+        """Get current workflow state"""
+        if not self.workflow_instance:
+            return None
+        
+        config = {"configurable": {"thread_id": thread_id}}
+        
+        try:
+            state = self.workflow_instance.get_state(config)
+            if state and state.values:
+                return self._serialize_result(state.values)
+            return None
+        except Exception:
+            return None
+    
+    def chat_update(self, thread_id: str, message: WorkflowMessage) -> Dict[str, Any]:
+        """Handle chat updates in workflow"""
+        return self.resume_workflow(thread_id, message)
+    
+    def _serialize_result(self, result: Dict[str, Any]) -> Dict[str, Any]:
+        """Convert workflow result to JSON-serializable format"""
+        if not isinstance(result, dict):
+            return {"raw_result": str(result)}
+        
+        serialized = {}
+        for key, value in result.items():
+            if key == "messages":
+                # Convert BaseMessage objects to dictionaries
+                serialized[key] = []
+                if isinstance(value, list):
+                    for msg in value:
+                        if hasattr(msg, 'content') and hasattr(msg, 'type'):
+                            serialized[key].append({
+                                "content": msg.content,
+                                "type": msg.type,
+                                "role": getattr(msg, 'role', 'unknown')
+                            })
+                        else:
+                            serialized[key].append(str(msg))
+                else:
+                    serialized[key] = str(value)
+            elif isinstance(value, (str, int, float, bool, type(None))):
+                serialized[key] = value
+            elif isinstance(value, dict):
+                serialized[key] = self._serialize_result(value)
+            elif isinstance(value, list):
+                serialized[key] = [self._serialize_result(item) if isinstance(item, dict) else str(item) for item in value]
+            else:
+                serialized[key] = str(value)
+        
+        return serialized
