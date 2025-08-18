@@ -37,7 +37,7 @@ class SampleWorkflow(BaseWorkflowInterface):
         self.workflow_instance = self.graph.compile(
             checkpointer=self.checkpointer,
             interrupt_after=[],
-            interrupt_before=["llm_node"]
+            interrupt_before=["next_node"]
         )
     
     def _initialize_graph(self) -> None:
@@ -48,11 +48,10 @@ class SampleWorkflow(BaseWorkflowInterface):
         """
         # Add workflow nodes
         self.graph.add_node("process_input", self.sample_workflow_nodes.process_input)
-        self.graph.add_node("llm_node", self.sample_workflow_nodes.llm_node)
+        self.graph.add_node("next_node", self.sample_workflow_nodes.next_node)
         
-        # Set entry point
+        # Set an entry point
         self.graph.set_entry_point("process_input")
         
-        # Add edges to define workflow flow
-        self.graph.add_edge("process_input", "llm_node")
-        self.graph.add_edge("llm_node", END)
+        self.graph.add_edge("process_input", "next_node")
+        self.graph.add_edge("next_node", END)

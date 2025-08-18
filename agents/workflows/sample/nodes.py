@@ -74,8 +74,8 @@ class SampleWorkflowNodes:
         if not prompt or not prompt.strip():
             raise ValueError("Empty or invalid prompt provided")
         
-        human_message = HumanMessage(content=prompt)
-        
+        human_message = HumanMessage(content=content)
+
         # Update state
         updated_state = state.copy()
         updated_state["messages"] = state.get("messages", []) + [human_message]
@@ -89,7 +89,7 @@ class SampleWorkflowNodes:
         
         return updated_state
     
-    def llm_node(self, state: Dict[str, Any]) -> Dict[str, Any]:
+    def next_node(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """Call LLM with processed input
         
         Args:

@@ -57,10 +57,6 @@ class BaseWorkflowInterface(ABC):
         # Get the current interrupted state
         curr_state = self.workflow_instance.get_state(config)
 
-
-        print(f"Current state: {curr_state}")
-        print(f"Curr_state Next: {curr_state.next}")
-
         if not curr_state or not curr_state.next:
             return curr_state
 
