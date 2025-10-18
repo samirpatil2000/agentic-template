@@ -1,25 +1,29 @@
 import time
 from datetime import datetime, timezone
 
-from flask import Flask
-from controllers.workflow_controller import workflow_bp
+from fastapi import FastAPI
+from controllers.workflow_controller import workflow_router
 
-app = Flask(__name__)
+app = FastAPI(
+    title="FastAPI Workflow Orchestration System",
+    description="A workflow orchestration system built with FastAPI",
+    version="1.0.0"
+)
 
-# Register workflow blueprint
-app.register_blueprint(workflow_bp)
+# Include workflow router
+app.include_router(workflow_router)
 
 
-@app.route('/')
+@app.get("/")
 def hello_world():
     return {
-        'message': 'Flask Workflow Orchestration System',
+        'message': 'FastAPI Workflow Orchestration System',
         'version': '1.0.0',
         'endpoints': {
-            'start_workflow': 'POST /workflow/{workflow_name}',
-            'continue_workflow': 'POST /workflow/{workflow_name}/{thread_id}',
-            'get_state': 'GET /workflow/{workflow_name}/{thread_id}/state',
-            'available_workflows': 'GET /workflow/available'
+            'start_workflow': 'POST /workflows/{workflow_name}',
+            'continue_workflow': 'POST /workflows/{workflow_name}/{thread_id}',
+            'get_state': 'GET /workflows/{workflow_name}/{thread_id}/state',
+            'available_workflows': 'GET /workflows/available'
         }
     }
 
@@ -46,4 +50,5 @@ def health_check():
     return health_check_response
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5005)
+    import uvicorn
+    uvicorn.run("app:app", host='0.0.0.0', port=5005, reload=True)
