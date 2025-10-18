@@ -8,7 +8,6 @@ from langgraph.graph import StateGraph
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.messages import BaseMessage
 
-
 class BaseWorkflowState(TypedDict):
     """Base state structure for all workflows"""
     messages: list[BaseMessage]
@@ -73,7 +72,7 @@ class BaseWorkflowInterface(ABC):
         curr_state = self.workflow_instance.get_state(config)
 
         if not curr_state or not curr_state.next:
-            return curr_state
+            return self._serialize_result(curr_state)
 
         # Prepare the state for resumption
         resume_state = {

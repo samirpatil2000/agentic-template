@@ -1,3 +1,4 @@
+import os
 import time
 from datetime import datetime, timezone
 
@@ -51,7 +52,7 @@ def health_check():
 
 if __name__ == '__main__':
     import uvicorn
-    uvicorn.run("app:app", host='0.0.0.0', port=5005, reload=True)
+    uvicorn.run("app:app", host='0.0.0.0', port=int(os.getenv("PORT")), reload=True)
 
 
 

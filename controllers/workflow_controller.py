@@ -128,7 +128,7 @@ def continue_workflow(workflow_name: str, thread_id: str, request_data: Workflow
         )
 
 
-@workflow_router.get("/{workflow_name}/{thread_id}/state")
+@workflow_router.get("/{workflow_name}/{thread_id}")
 def get_workflow_state(workflow_name: str, thread_id: str) -> Dict[str, Any]:
     """Get current state of a workflow instance
     
