@@ -13,7 +13,7 @@ class WorkflowOrchestrator:
     
     def _register_workflows(self) -> None:
         """Register available workflows"""
-        # Initialize and register sample workflow
+        # Initialize and register a sample workflow
         sample_workflow = SampleWorkflow()
         sample_workflow.init()
         self.workflows['sample'] = sample_workflow

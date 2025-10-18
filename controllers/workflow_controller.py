@@ -1,150 +1,134 @@
-from flask import Blueprint, request, jsonify
+from fastapi import APIRouter, HTTPException, Depends
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 from typing import Dict, Any
 from agents.orchestrator import WorkflowOrchestrator
 from agents.workflows.index import WorkflowMessage
 
 
-workflow_bp = Blueprint('workflows', __name__, url_prefix='/workflows')
+class WorkflowRequest(BaseModel):
+    content: str
+    type: str
+    role: str
+
+
+workflow_router = APIRouter(prefix="/workflows", tags=["workflows"])
 
 orchestrator = WorkflowOrchestrator()
 
 
-@workflow_bp.route('/<workflow_name>', methods=['POST'])
-def start_workflow(workflow_name: str) -> Dict[str, Any]:
+@workflow_router.post("/{workflow_name}")
+def start_workflow(workflow_name: str, request_data: WorkflowRequest) -> Dict[str, Any]:
     """Start a new workflow instance
     
     Args:
         workflow_name: Name of the workflow to start
+        request_data: Workflow request data containing content, type, and role
         
     Returns:
         JSON response with workflow state and thread_id
     """
     try:
-        # Validate request data
-        if not request.is_json:
-            return jsonify({
-                'status': 'error',
-                'message': 'Request must be JSON',
-                'error': 'Invalid content type'
-            }), 400
-        
-        data = request.get_json()
-        
-        # Validate required fields
-        required_fields = ['content', 'type', 'role']
-        for field in required_fields:
-            if field not in data:
-                return jsonify({
-                    'status': 'error',
-                    'message': f'Missing required field: {field}',
-                    'error': 'Validation error'
-                }), 400
-        
         message = WorkflowMessage(
-            content=data['content'],
-            type=data['type'],
-            role=data['role']
+            content=request_data.content,
+            type=request_data.type,
+            role=request_data.role
         )
         
         # Start workflow
         result = orchestrator.start(workflow_name, message)
         
         # Return appropriate status code based on result
-        status_code = 200 if result['status'] == 'started' else 500
-        
-        return jsonify(result), status_code
+        if result['status'] == 'started':
+            return result
+        else:
+            raise HTTPException(status_code=500, detail=result)
         
     except ValueError as e:
-        return jsonify({
-            'status': 'error',
-            'message': str(e),
-            'error': 'Invalid workflow name'
-        }), 404
+        raise HTTPException(
+            status_code=404,
+            detail={
+                'status': 'error',
+                'message': str(e),
+                'error': 'Invalid workflow name'
+            }
+        )
     
     except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'message': 'Internal server error',
-            'error': str(e)
-        }), 500
+        raise HTTPException(
+            status_code=500,
+            detail={
+                'status': 'error',
+                'message': 'Internal server error',
+                'error': str(e)
+            }
+        )
 
 
-@workflow_bp.route('/<workflow_name>/<thread_id>', methods=['POST'])
-def continue_workflow(workflow_name: str, thread_id: str) -> Dict[str, Any]:
+@workflow_router.post("/{workflow_name}/{thread_id}")
+def continue_workflow(workflow_name: str, thread_id: str, request_data: WorkflowRequest) -> Dict[str, Any]:
     """Continue an existing workflow instance with new input
     
     Args:
         workflow_name: Name of the workflow
         thread_id: Thread ID of the workflow instance
+        request_data: Workflow request data containing content, type, and role
         
     Returns:
         JSON response with updated workflow state
     """
     try:
-        # Validate request data
-        if not request.is_json:
-            return jsonify({
-                'status': 'error',
-                'message': 'Request must be JSON',
-                'error': 'Invalid content type'
-            }), 400
-        
-        data = request.get_json()
-        
-        # Validate required fields
-        required_fields = ['content', 'type', 'role']
-        for field in required_fields:
-            if field not in data:
-                return jsonify({
-                    'status': 'error',
-                    'message': f'Missing required field: {field}',
-                    'error': 'Validation error'
-                }), 400
-        
         # Validate thread_id
         if not thread_id or not thread_id.strip():
-            return jsonify({
-                'status': 'error',
-                'message': 'Invalid thread_id',
-                'error': 'Thread ID cannot be empty'
-            }), 400
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    'status': 'error',
+                    'message': 'Invalid thread_id',
+                    'error': 'Thread ID cannot be empty'
+                }
+            )
         
         # Create workflow message
         message = WorkflowMessage(
-            content=data['content'],
-            type=data['type'],
-            role=data['role']
+            content=request_data.content,
+            type=request_data.type,
+            role=request_data.role
         )
         
         # Continue workflow
         result = orchestrator.chat(workflow_name, thread_id, message)
         
-        # Return appropriate status code based on result
+        # Return appropriate response based on result
         if result['status'] == 'continued':
-            status_code = 200
+            return result
         elif result['status'] == 'error' and 'not found' in result.get('error', '').lower():
-            status_code = 404
+            raise HTTPException(status_code=404, detail=result)
         else:
-            status_code = 500
-        
-        return jsonify(result), status_code
+            raise HTTPException(status_code=500, detail=result)
         
     except ValueError as e:
-        return jsonify({
-            'status': 'error',
-            'message': str(e),
-            'error': 'Invalid workflow name or thread_id'
-        }), 404
+        raise HTTPException(
+            status_code=404,
+            detail={
+                'status': 'error',
+                'message': str(e),
+                'error': 'Invalid workflow name or thread_id'
+            }
+        )
     
     except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'message': 'Internal server error',
-            'error': str(e)
-        }), 500
+        raise HTTPException(
+            status_code=500,
+            detail={
+                'status': 'error',
+                'message': 'Internal server error',
+                'error': str(e)
+            }
+        )
 
 
-@workflow_bp.route('/<workflow_name>/<thread_id>/state', methods=['GET'])
+@workflow_router.get("/{workflow_name}/{thread_id}/state")
 def get_workflow_state(workflow_name: str, thread_id: str) -> Dict[str, Any]:
     """Get current state of a workflow instance
     
@@ -158,41 +142,48 @@ def get_workflow_state(workflow_name: str, thread_id: str) -> Dict[str, Any]:
     try:
         # Validate thread_id
         if not thread_id or not thread_id.strip():
-            return jsonify({
-                'status': 'error',
-                'message': 'Invalid thread_id',
-                'error': 'Thread ID cannot be empty'
-            }), 400
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    'status': 'error',
+                    'message': 'Invalid thread_id',
+                    'error': 'Thread ID cannot be empty'
+                }
+            )
         
         # Get workflow state
         result = orchestrator.get_state(workflow_name, thread_id)
         
-        # Return appropriate status code based on result
+        # Return appropriate response based on result
         if result['status'] == 'found':
-            status_code = 200
+            return result
         elif result['status'] == 'not_found':
-            status_code = 404
+            raise HTTPException(status_code=404, detail=result)
         else:
-            status_code = 500
-        
-        return jsonify(result), status_code
+            raise HTTPException(status_code=500, detail=result)
         
     except ValueError as e:
-        return jsonify({
-            'status': 'error',
-            'message': str(e),
-            'error': 'Invalid workflow name'
-        }), 404
+        raise HTTPException(
+            status_code=404,
+            detail={
+                'status': 'error',
+                'message': str(e),
+                'error': 'Invalid workflow name'
+            }
+        )
     
     except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'message': 'Internal server error',
-            'error': str(e)
-        }), 500
+        raise HTTPException(
+            status_code=500,
+            detail={
+                'status': 'error',
+                'message': 'Internal server error',
+                'error': str(e)
+            }
+        )
 
 
-@workflow_bp.route('/available', methods=['GET'])
+@workflow_router.get("/available")
 def get_available_workflows() -> Dict[str, Any]:
     """Get list of available workflows
     
@@ -202,45 +193,18 @@ def get_available_workflows() -> Dict[str, Any]:
     try:
         workflows = orchestrator.get_available_workflows()
         
-        return jsonify({
+        return {
             'status': 'success',
             'workflows': workflows,
             'message': f'Found {len(workflows)} available workflows'
-        }), 200
+        }
         
     except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'message': 'Failed to retrieve available workflows',
-            'error': str(e)
-        }), 500
-
-
-@workflow_bp.errorhandler(404)
-def not_found_error(error):
-    """Handle 404 errors"""
-    return jsonify({
-        'status': 'error',
-        'message': 'Endpoint not found',
-        'error': 'The requested resource does not exist'
-    }), 404
-
-
-@workflow_bp.errorhandler(405)
-def method_not_allowed_error(error):
-    """Handle 405 errors"""
-    return jsonify({
-        'status': 'error',
-        'message': 'Method not allowed',
-        'error': 'The HTTP method is not allowed for this endpoint'
-    }), 405
-
-
-@workflow_bp.errorhandler(500)
-def internal_error(error):
-    """Handle 500 errors"""
-    return jsonify({
-        'status': 'error',
-        'message': 'Internal server error',
-        'error': 'An unexpected error occurred'
-    }), 500
+        raise HTTPException(
+            status_code=500,
+            detail={
+                'status': 'error',
+                'message': 'Failed to retrieve available workflows',
+                'error': str(e)
+            }
+        )
