@@ -1,4 +1,4 @@
-from typing import Dict, Any
+import os
 from langgraph.graph import StateGraph, END
 from agents.workflows.index import BaseWorkflowInterface, BaseWorkflowState
 from agents.workflows.sample.nodes import SampleWorkflowNodes
@@ -39,6 +39,9 @@ class SampleWorkflow(BaseWorkflowInterface):
             interrupt_after=[],
             interrupt_before=["next_node"]
         )
+
+        self._save_workflow_diagram(os.path.dirname(__file__))
+
     
     def _initialize_graph(self) -> None:
         """Build the workflow graph structure

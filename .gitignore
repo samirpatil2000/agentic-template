@@ -1,3 +1,4 @@
 .env
 /venv
 /.idea
+*workflow-diagram.png

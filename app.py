@@ -52,3 +52,11 @@ def health_check():
 if __name__ == '__main__':
     import uvicorn
     uvicorn.run("app:app", host='0.0.0.0', port=5005, reload=True)
+
+
+
+# TODO
+# - Add logging and log rotation in file
+# - Add authentication
+# - Add prometheus metrics
+# - Add deployment dockers

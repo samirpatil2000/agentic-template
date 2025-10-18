@@ -1,6 +1,9 @@
+import os
 from abc import ABC, abstractmethod
 from typing import TypedDict, Any, Dict, Optional
 from dataclasses import dataclass
+
+from langchain_core.runnables.graph import MermaidDrawMethod
 from langgraph.graph import StateGraph
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.messages import BaseMessage
@@ -46,6 +49,18 @@ class BaseWorkflowInterface(ABC):
         """Save workflow state using checkpointer"""
         # State is automatically saved by langgraph checkpointer
         pass
+
+    def _save_workflow_diagram(self, file_path: str):
+        try:
+            self.mermaidimg = self.workflow_instance.get_graph().draw_mermaid_png(
+                draw_method=MermaidDrawMethod.API,
+            )
+            folder_name = os.path.basename(file_path)
+            output_file_path = os.path.join(file_path, f"{folder_name}-workflow-diagram.png")
+            with open(output_file_path, "wb") as f:
+                f.write(self.mermaidimg)
+        except Exception:
+            pass
     
     def resume_workflow(self, thread_id: str, message: WorkflowMessage) -> Dict[str, Any]:
         """Resume workflow from saved state with new input"""
