@@ -6,3 +6,5 @@ langchain-openai>=0.1.0
 openai>=1.0.0
 python-dotenv>=1.0.0
 typing-extensions>=4.0.0
+psycopg2-binary>=2.9.0
+langgraph-checkpoint-postgres

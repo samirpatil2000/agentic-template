@@ -7,6 +7,40 @@ from langchain_core.runnables.graph import MermaidDrawMethod
 from langgraph.graph import StateGraph
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.messages import BaseMessage
+from psycopg import Connection
+from psycopg.rows import dict_row
+from langgraph.checkpoint.postgres import PostgresSaver
+from dotenv import load_dotenv
+
+load_dotenv()
+
+
+def create_checkpointer():
+    """Create checkpointer based on DATABASE_TYPE environment variable"""
+    database_type = os.getenv("DATABASE_TYPE", "inmemory").lower()
+    if database_type != "postgres":
+        return MemorySaver()
+
+    database_url = os.getenv("DATABASE_URL")
+    if not database_url:
+        print("Warning: DATABASE_URL not set, falling back to MemorySaver")
+        return MemorySaver()
+
+    try:
+        conn = Connection.connect(
+            database_url,
+            autocommit=True,
+            prepare_threshold=0,
+            row_factory=dict_row,
+        )
+        checkpointer = PostgresSaver(conn=conn)
+        checkpointer.setup()
+        print("PostgresSaver initialized successfully")
+        return checkpointer
+    except Exception as e:
+        print(f"Warning: Failed to create PostgresSaver ({e}), falling back to MemorySaver")
+        return MemorySaver()
+
 
 class BaseWorkflowState(TypedDict):
     """Base state structure for all workflows"""
@@ -30,7 +64,7 @@ class BaseWorkflowInterface(ABC):
     
     def __init__(self):
         self.initial_message = None
-        self.checkpointer = MemorySaver()
+        self.checkpointer = create_checkpointer()
         self.graph: Optional[StateGraph] = None
         self.workflow_instance = None
     
