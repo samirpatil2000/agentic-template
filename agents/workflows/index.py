@@ -13,16 +13,6 @@ from psycopg.rows import dict_row
 from langgraph.checkpoint.postgres import PostgresSaver
 from dotenv import load_dotenv
 
-# Import state utilities
-try:
-    from utils.state_utils import merge_partial_state_update, prepare_messages_for_update
-except ImportError:
-    # Fallback if utils directory doesn't exist in path
-    import sys
-    import os
-    sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-    from utils.state_utils import merge_partial_state_update, prepare_messages_for_update
-
 load_dotenv()
 
 
@@ -200,55 +190,7 @@ class BaseWorkflowInterface(ABC):
     def chat_update(self, thread_id: str, message: WorkflowMessage) -> Dict[str, Any]:
         """Handle chat updates in workflow"""
         return self.resume_workflow(thread_id, message)
-    
-    def update_state(self, thread_id: str, **partial_updates) -> Dict[str, Any]:
-        """
-        Update workflow state with partial updates.
-        
-        Args:
-            thread_id: The workflow thread identifier
-            **partial_updates: Keyword arguments containing the fields to update
-            
-        Returns:
-            Updated workflow state
-            
-        Example:
-            update_state(thread_id, messages=[new_message], status="in_progress")
-        """
-        if not self.workflow_instance:
-            raise ValueError("Workflow not initialized")
 
-        config: RunnableConfig = RunnableConfig(
-            configurable={
-                "thread_id": thread_id,
-            },
-        )
-
-        # Get the current state
-        curr_state = self.workflow_instance.get_state(config)
-        
-        if not curr_state:
-            raise ValueError(f"No workflow state found for thread_id: {thread_id}")
-
-        current_values = curr_state.values.copy() if curr_state.values else {}
-        
-        # Prepare messages if they are in the update
-        if "messages" in partial_updates and partial_updates["messages"]:
-            partial_updates["messages"] = prepare_messages_for_update(partial_updates["messages"])
-        
-        # Merge the partial updates with current state
-        merged_state = merge_partial_state_update(current_values, partial_updates)
-        
-        # Update the state using LangGraph's update_state
-        self.workflow_instance.update_state(config=config, values=merged_state)
-        
-        # Return the updated state
-        updated_state = self.workflow_instance.get_state(config)
-        if updated_state and updated_state.values:
-            return self._serialize_result(updated_state.values)
-        
-        return self._serialize_result(merged_state)
-    
     def _serialize_result(self, result: Dict[str, Any]) -> Dict[str, Any]:
         """Convert workflow result to JSON-serializable format"""
         if not isinstance(result, dict):

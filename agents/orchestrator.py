@@ -177,47 +177,6 @@ class WorkflowOrchestrator:
                 'error': str(e),
                 'message': 'Failed to resume workflow'
             }
-    
-    def update_state(self, workflow_name: str, thread_id: str, **partial_updates) -> Dict[str, Any]:
-        """Update workflow state with partial updates
-        
-        Args:
-            workflow_name: Name of the workflow
-            thread_id: Thread ID of the workflow instance
-            **partial_updates: Keyword arguments containing the fields to update
-            
-        Returns:
-            Dict containing updated workflow state
-            
-        Raises:
-            ValueError: If workflow name is invalid
-            
-        Example:
-            update_state("sample", "abc123", messages=[new_message], status="in_progress")
-        """
-        if workflow_name not in self.workflows:
-            raise ValueError(f"Workflow '{workflow_name}' not found")
-        
-        workflow = self.workflows[workflow_name]
-        
-        try:
-            result = workflow.update_state(thread_id, **partial_updates)
-            
-            return {
-                'status': 'updated',
-                'thread_id': thread_id,
-                'workflow_name': workflow_name,
-                'state': result,
-                'message': 'Workflow state updated successfully'
-            }
-        except Exception as e:
-            return {
-                'status': 'error',
-                'thread_id': thread_id,
-                'workflow_name': workflow_name,
-                'error': str(e),
-                'message': 'Failed to update workflow state'
-            }
 
     def get_available_workflows(self) -> list[str]:
         """Get list of available workflow names"""
