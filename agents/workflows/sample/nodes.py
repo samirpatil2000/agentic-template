@@ -51,30 +51,28 @@ class SampleWorkflowNodes:
             state: Current workflow state
 
         Returns:
-            Updated state with processed input
+            Partial state update with only changed fields
         """
-        user_input = state.get("user_input", {})
         messages = state.get("messages", [])
         last_message = messages[-1]
 
         user_input = json.loads(last_message.content)
 
-        updated_state = {
-            "current_step": "input_processed",
-            "workflow_data": {
-                **state.get("workflow_data", {}),
-                "processed_prompt": user_input.get("prompt")
-            }
-        }
+        # Create new message to append
         new_message = BaseMessage(
             role="ai",
             type="update_strategies_node_response",
             content=json.dumps({"hello": "world"}),
         )
         
-        updated_state["messages"] = messages + [new_message]
-
-        return updated_state
+        return {
+            "current_step": "input_processed",
+            "workflow_data": {
+                **state.get("workflow_data", {}),
+                "processed_prompt": user_input.get("prompt")
+            },
+            "messages":[new_message]  # This will be appended to existing messages
+        }
 
     def next_node(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """Call LLM with processed input
@@ -83,7 +81,7 @@ class SampleWorkflowNodes:
             state: Current workflow state
 
         Returns:
-            Updated state with LLM response
+            Partial state update with only changed fields
         """
         messages = state.get("messages", [])
 
@@ -93,33 +91,29 @@ class SampleWorkflowNodes:
         try:
             response = self.llm.invoke(messages)
 
-            # Update state
-            updated_state = state.copy()
-            updated_state["current_step"] = "llm_completed"
-            updated_state["workflow_data"] = {
-                **state.get("workflow_data", {}),
-                "llm_response": response.content,
-            }
-
             final_message = BaseMessage(
                 role="ai",
                 type="next_node_response",
                 content=json.dumps({"final_response": "completed"}),
             )
             
-            updated_state["messages"] = updated_state.get("messages", []) + [final_message]
-            
-            return updated_state
+            return {
+                "current_step": "llm_completed",
+                "workflow_data": {
+                    **state.get("workflow_data", {}),
+                    "llm_response": response.content,
+                },
+                "messages": [final_message]  # This will be appended to existing messages
+            }
             
         except Exception as e:
             # Handle LLM errors
             error_message = f"LLM processing failed: {str(e)}"
             
-            updated_state = state.copy()
-            updated_state["current_step"] = "error"
-            updated_state["workflow_data"] = {
-                **state.get("workflow_data", {}),
-                "error": error_message
+            return {
+                "current_step": "error",
+                "workflow_data": {
+                    **state.get("workflow_data", {}),
+                    "error": error_message
+                }
             }
-            
-            raise ValueError(error_message)
