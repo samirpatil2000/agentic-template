@@ -31,7 +31,7 @@ def create_checkpointer():
         conn = Connection.connect(
             database_url,
             autocommit=True,
-            prepare_threshold=0,
+            prepare_threshold=None,
             row_factory=dict_row,
         )
         checkpointer = PostgresSaver(conn=conn)
