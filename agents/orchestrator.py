@@ -86,6 +86,7 @@ class WorkflowOrchestrator:
                 'message': 'Workflow updated successfully'
             }
         except Exception as e:
+            print(f"Error in chat: {e}")
             return {
                 'status': 'error',
                 'thread_id': thread_id,
@@ -176,7 +177,7 @@ class WorkflowOrchestrator:
                 'error': str(e),
                 'message': 'Failed to resume workflow'
             }
-    
+
     def get_available_workflows(self) -> list[str]:
         """Get list of available workflow names"""
         return list(self.workflows.keys())

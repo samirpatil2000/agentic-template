@@ -1,7 +1,7 @@
 import json
 import os
 from typing import Dict, Any
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import BaseMessage
 
 
 class MockLLM:
@@ -43,97 +43,85 @@ class SampleWorkflowNodes:
         except ImportError:
             print("Warning: langchain_openai not available, using mock LLM")
             self.llm = MockLLM()
-    
+
     def process_input(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """Process and validate user input
-        
+
         Args:
             state: Current workflow state
-            
-        Returns:
-            Updated state with processed input
-        """
-        print("Processing input")
-        user_input = state.get("user_input", {})
-        
-        # Extract content from user input
-        content = user_input.get("content", "")
-        input_type = user_input.get("type", "text")
-        role = user_input.get("role", "user")
-        
-        # Parse content if it's JSON string
-        try:
-            if isinstance(content, str) and content.startswith("{"):
-                parsed_content = json.loads(content)
-                prompt = parsed_content.get("prompt", content)
-            else:
-                prompt = content
-        except json.JSONDecodeError:
-            prompt = content
-        
-        if not prompt or not prompt.strip():
-            raise ValueError("Empty or invalid prompt provided")
-        
-        human_message = HumanMessage(content=content)
 
-        # Update state
-        updated_state = state.copy()
-        updated_state["messages"] = state.get("messages", []) + [human_message]
-        updated_state["current_step"] = "input_processed"
-        updated_state["workflow_data"] = {
-            **state.get("workflow_data", {}),
-            "processed_prompt": prompt,
-            "input_type": input_type,
-            "role": role
-        }
+        Returns:
+            Partial state update with only changed fields
+        """
+        messages = state.get("messages", [])
+        last_message = messages[-1] if messages else None
+
+        user_input = json.loads(last_message.content) if last_message else {}
+
+        # Create new message to append
+        new_message = BaseMessage(
+            role="ai",
+            type="update_strategies_node_response",
+            content=json.dumps({"hello": "world"}),
+        )
         
-        return updated_state
-    
+        # Get existing messages and append new one
+        updated_messages = messages.copy()
+        updated_messages.append(new_message)
+
+        return {
+            "current_step": "input_processed",
+            "workflow_data": {
+                **state.get("workflow_data", {}),
+                "processed_prompt": user_input.get("prompt")
+            },
+            "messages": updated_messages
+        }
+
     def next_node(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """Call LLM with processed input
-        
+
         Args:
             state: Current workflow state
-            
+
         Returns:
-            Updated state with LLM response
+            Partial state update with only changed fields
         """
-        print("Calling LLM")
         messages = state.get("messages", [])
 
-        print(f"Messages: {messages}")
-        
         if not messages:
             raise ValueError("No messages found in state")
-        
+
         try:
-            # Call LLM
             response = self.llm.invoke(messages)
-            
-            # Create AI message
-            ai_message = AIMessage(content=response.content)
-            
-            # Update state
-            updated_state = state.copy()
-            updated_state["messages"] = messages + [ai_message]
-            updated_state["current_step"] = "llm_completed"
-            updated_state["workflow_data"] = {
-                **state.get("workflow_data", {}),
-                "llm_response": response.content,
-                "tokens_used": getattr(response, 'usage', {}).get('total_tokens', 0) if hasattr(response, 'usage') else 0
+
+            final_message = BaseMessage(
+                role="ai",
+                type="next_node_response",
+                content=json.dumps({"final_response": response.content}),
+            )
+
+            # Get existing messages and append new one
+            updated_messages = messages.copy()
+            updated_messages.append(final_message)
+
+            return {
+                "current_step": "llm_completed",
+                "messages": updated_messages,
+                "workflow_data": {
+                    **state.get("workflow_data", {}),
+                    "llm_response": response.content
+                }
             }
-            
-            return updated_state
             
         except Exception as e:
             # Handle LLM errors
             error_message = f"LLM processing failed: {str(e)}"
             
-            updated_state = state.copy()
-            updated_state["current_step"] = "error"
-            updated_state["workflow_data"] = {
-                **state.get("workflow_data", {}),
-                "error": error_message
+            return {
+                "current_step": "error",
+                "workflow_data": {
+                    **state.get("workflow_data", {}),
+                    "error": error_message
+                }
             }
-            
-            raise ValueError(error_message)

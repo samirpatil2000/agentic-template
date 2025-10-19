@@ -1,7 +1,6 @@
-from fastapi import APIRouter, HTTPException, Depends
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional
 from agents.orchestrator import WorkflowOrchestrator
 from agents.workflows.index import WorkflowMessage
 
