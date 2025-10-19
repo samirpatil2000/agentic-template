@@ -54,9 +54,9 @@ class SampleWorkflowNodes:
             Partial state update with only changed fields
         """
         messages = state.get("messages", [])
-        last_message = messages[-1]
+        last_message = messages[-1] if messages else None
 
-        user_input = json.loads(last_message.content)
+        user_input = json.loads(last_message.content) if last_message else {}
 
         # Create new message to append
         new_message = BaseMessage(
@@ -65,13 +65,17 @@ class SampleWorkflowNodes:
             content=json.dumps({"hello": "world"}),
         )
         
+        # Get existing messages and append new one
+        updated_messages = messages.copy()
+        updated_messages.append(new_message)
+
         return {
             "current_step": "input_processed",
             "workflow_data": {
                 **state.get("workflow_data", {}),
                 "processed_prompt": user_input.get("prompt")
             },
-            "messages":[new_message]  # This will be appended to existing messages
+            "messages": updated_messages
         }
 
     def next_node(self, state: Dict[str, Any]) -> Dict[str, Any]:
@@ -94,16 +98,20 @@ class SampleWorkflowNodes:
             final_message = BaseMessage(
                 role="ai",
                 type="next_node_response",
-                content=json.dumps({"final_response": "completed"}),
+                content=json.dumps({"final_response": response.content}),
             )
-            
+
+            # Get existing messages and append new one
+            updated_messages = messages.copy()
+            updated_messages.append(final_message)
+
             return {
                 "current_step": "llm_completed",
+                "messages": updated_messages,
                 "workflow_data": {
                     **state.get("workflow_data", {}),
-                    "llm_response": response.content,
-                },
-                "messages": [final_message]  # This will be appended to existing messages
+                    "llm_response": response.content
+                }
             }
             
         except Exception as e:

@@ -117,9 +117,13 @@ class BaseWorkflowInterface(ABC):
         if not curr_state.next:
             return self._serialize_result(curr_state.values)
 
-        # Prepare the state for resumption
+        # Prepare the state for resumption with existing values
         values = curr_state.values.copy() if curr_state.values else {}
         values["is_processing"] = True
+
+        # Initialize messages list if it doesn't exist
+        if "messages" not in values:
+            values["messages"] = []
 
         # Add new message to existing messages if provided
         if message:
@@ -128,11 +132,9 @@ class BaseWorkflowInterface(ABC):
                 type=message.type,
                 role=message.role
             )
-            messages = values.get("messages", [])
-            messages.append(user_message)
-            values["messages"] = messages
+            values["messages"].append(user_message)
 
-        # Update the state to include the new user input
+        # Update the state with the appended messages
         self.workflow_instance.update_state(config=config, values=values)
         
         # Continue workflow execution
@@ -151,6 +153,7 @@ class BaseWorkflowInterface(ABC):
             },
         )
 
+        # Initialize state with empty messages array
         initial_state = {
             "messages": [],
             "user_input": {"content": message.content, "type": message.type, "role": message.role},
@@ -161,6 +164,7 @@ class BaseWorkflowInterface(ABC):
             "is_processing": True,
         }
 
+        # Add initial message if provided
         if message:
             initial_message = BaseMessage(
                 content=message.content,
