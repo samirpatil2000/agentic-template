@@ -75,6 +75,30 @@ pip install -r requirements.txt
 │   └── workflow_controller.py  # API route handlers
 ```
 
+## Example cURL Commands
+
+### Start a new workflow
+```bash
+curl --location 'http://localhost:8080/workflows/sample' \
+--header 'Content-Type: application/json' \
+--data '{"content": "{\"company_url\":\"niti.ai\"}", "type": "text", "role": "user"}'
+```
+
+### Continue an existing workflow
+```bash
+curl --location 'http://localhost:8080/workflows/sample/3a622774-128f-4f32-aa55-15f62d9a0c56' \
+--header 'Content-Type: application/json' \
+--data '{"content": "{\"userResponse\":[{\"question\":\"\",\"answer\":\"\"}]}", "type": "text", "role": "user"}'
+```
+
+### Get workflow state
+```bash
+curl --location 'http://localhost:8080/workflows/sample/3a622774-128f-4f32-aa55-15f62d9a0c56' \
+```
+
+
+
+
 ## Creating New Workflows
 
 1. Create a new directory under `agents/workflows/`
