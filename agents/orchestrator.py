@@ -86,6 +86,7 @@ class WorkflowOrchestrator:
                 'message': 'Workflow updated successfully'
             }
         except Exception as e:
+            print(f"Error in chat: {e}")
             return {
                 'status': 'error',
                 'thread_id': thread_id,
