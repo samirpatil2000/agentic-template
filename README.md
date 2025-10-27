@@ -10,6 +10,7 @@ A starter template for building AI-driven workflow orchestration systems using F
 - Built-in state management and checkpointing
 - PostgreSQL-backed workflow persistence
 - Support for workflow interrupts and continuations
+- Non-blocking concurrent workflow execution using ThreadPoolExecutor
 
 ## Prerequisites
 

@@ -61,3 +61,8 @@ if __name__ == '__main__':
 # - Add authentication
 # - Add prometheus metrics
 # - Add deployment dockers
+# - Add tool calling example
+# - Langfuse middlewares
+# - Add rate limiting
+# - Instead of sample agent add any simple agent / chatbot [ email agent ]
+# - Add resilient postgres saver

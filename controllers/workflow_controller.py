@@ -3,6 +3,9 @@ from pydantic import BaseModel
 from typing import Dict, Any, List, Optional
 from agents.orchestrator import WorkflowOrchestrator
 from agents.workflows.index import WorkflowMessage
+from concurrent.futures import ThreadPoolExecutor
+import asyncio
+from functools import partial
 
 
 class WorkflowRequest(BaseModel):
@@ -14,10 +17,11 @@ class WorkflowRequest(BaseModel):
 workflow_router = APIRouter(prefix="/workflows", tags=["workflows"])
 
 orchestrator = WorkflowOrchestrator()
+executor = ThreadPoolExecutor(max_workers=4)
 
 
 @workflow_router.post("/{workflow_name}")
-def start_workflow(workflow_name: str, request_data: WorkflowRequest) -> Dict[str, Any]:
+async def start_workflow(workflow_name: str, request_data: WorkflowRequest) -> Dict[str, Any]:
     """Start a new workflow instance
     
     Args:
@@ -34,8 +38,10 @@ def start_workflow(workflow_name: str, request_data: WorkflowRequest) -> Dict[st
             role=request_data.role
         )
         
-        # Start workflow
-        result = orchestrator.start(workflow_name, message)
+        # Start workflow using executor to avoid blocking
+        loop = asyncio.get_event_loop()
+        start_func = partial(orchestrator.start, workflow_name, message)
+        result = await loop.run_in_executor(executor, start_func)
         
         # Return appropriate status code based on result
         if result['status'] == 'started':
@@ -65,7 +71,7 @@ def start_workflow(workflow_name: str, request_data: WorkflowRequest) -> Dict[st
 
 
 @workflow_router.post("/{workflow_name}/{thread_id}")
-def continue_workflow(workflow_name: str, thread_id: str, request_data: WorkflowRequest) -> Dict[str, Any]:
+async def continue_workflow(workflow_name: str, thread_id: str, request_data: WorkflowRequest) -> Dict[str, Any]:
     """Continue an existing workflow instance with new input
     
     Args:
@@ -95,8 +101,10 @@ def continue_workflow(workflow_name: str, thread_id: str, request_data: Workflow
             role=request_data.role
         )
         
-        # Continue workflow
-        result = orchestrator.chat(workflow_name, thread_id, message)
+        # Continue workflow using executor to avoid blocking
+        loop = asyncio.get_event_loop()
+        chat_func = partial(orchestrator.chat, workflow_name, thread_id, message)
+        result = await loop.run_in_executor(executor, chat_func)
         
         # Return appropriate response based on result
         if result['status'] == 'continued':
@@ -128,7 +136,7 @@ def continue_workflow(workflow_name: str, thread_id: str, request_data: Workflow
 
 
 @workflow_router.get("/{workflow_name}/{thread_id}")
-def get_workflow_state(workflow_name: str, thread_id: str) -> Dict[str, Any]:
+async def get_workflow_state(workflow_name: str, thread_id: str) -> Dict[str, Any]:
     """Get current state of a workflow instance
     
     Args:
@@ -150,8 +158,10 @@ def get_workflow_state(workflow_name: str, thread_id: str) -> Dict[str, Any]:
                 }
             )
         
-        # Get workflow state
-        result = orchestrator.get_state(workflow_name, thread_id)
+        # Get workflow state using executor to avoid blocking
+        loop = asyncio.get_event_loop()
+        get_state_func = partial(orchestrator.get_state, workflow_name, thread_id)
+        result = await loop.run_in_executor(executor, get_state_func)
         
         # Return appropriate response based on result
         if result['status'] == 'found':
@@ -183,14 +193,17 @@ def get_workflow_state(workflow_name: str, thread_id: str) -> Dict[str, Any]:
 
 
 @workflow_router.get("/available")
-def get_available_workflows() -> Dict[str, Any]:
+async def get_available_workflows() -> Dict[str, Any]:
     """Get list of available workflows
     
     Returns:
         JSON response with list of available workflow names
     """
     try:
-        workflows = orchestrator.get_available_workflows()
+        # Get available workflows using executor to avoid blocking
+        loop = asyncio.get_event_loop()
+        get_workflows_func = partial(orchestrator.get_available_workflows)
+        workflows = await loop.run_in_executor(executor, get_workflows_func)
         
         return {
             'status': 'success',
