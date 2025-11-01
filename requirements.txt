@@ -11,3 +11,5 @@ psycopg2-binary>=2.9.0
 psycopg>=3.1.0
 psycopg_pool>=3.1.0
 langgraph-checkpoint-postgres
+google-auth>=2.0.0
+google-cloud-aiplatform>=1.0.0

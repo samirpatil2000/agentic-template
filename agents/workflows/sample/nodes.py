@@ -4,6 +4,9 @@ from typing import Dict, Any
 from langchain_core.messages import BaseMessage
 import litellm
 
+from tools.exceptions import Exceptions
+
+
 class SampleWorkflowNodes:
     """Defines logic for each node in the sample workflow"""
     
@@ -11,7 +14,7 @@ class SampleWorkflowNodes:
         # Initialize LiteLLM with minimal configuration
         # Uses environment variables for API keys (OPENAI_API_KEY, GEMINI_API_KEY etc.)
 
-        self.model = "gemini/gemini-1.5-pro"
+        self.model = "gemini/gemini-2.5-pro"
         self.temperature = 0.7
 
     def process_input(self, state: Dict[str, Any]) -> Dict[str, Any]:
@@ -70,9 +73,18 @@ class SampleWorkflowNodes:
                     # Extract role from message or default to 'user'
                     role = getattr(msg, 'role', 'user')
                     litellm_messages.append({"role": role, "content": msg.content})
-            
+
+            print(f"Sending messages to LLM: {litellm_messages}")
+
+            litellm_messages = [
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": "What is the capital of France?"},
+                {"role": "assistant", "content": "The capital of France is Paris."},
+                {"role": "user", "content": "Tell me more about it."}
+            ]
             response = litellm.completion(
                 model=self.model,
+                api_key=os.environ.get("GEMINI_API_KEY"),
                 messages=litellm_messages,
                 temperature=self.temperature
             )
@@ -97,13 +109,5 @@ class SampleWorkflowNodes:
             }
             
         except Exception as e:
-            # Handle LLM errors
-            error_message = f"LLM processing failed: {str(e)}"
-            
-            return {
-                "current_step": "error",
-                "workflow_data": {
-                    **state.get("workflow_data", {}),
-                    "error": error_message
-                }
-            }
+            print(f"Error in next_node: {e}")
+            raise Exceptions.general_exception(500, str(e))
