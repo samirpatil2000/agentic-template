@@ -65,3 +65,4 @@ if __name__ == '__main__':
 # - Langfuse middlewares
 # - Add rate limiting
 # - Instead of sample agent add any simple agent / chatbot [ email agent ]
+# - Add Exceptions handling
