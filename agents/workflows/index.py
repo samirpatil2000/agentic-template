@@ -10,7 +10,9 @@ from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.messages import BaseMessage
 from psycopg import Connection
 from psycopg.rows import dict_row
-from langgraph.checkpoint.postgres import PostgresSaver
+
+from agents.postgres import get_connection_pool
+from agents.resilient_postgres_saver import ResilientPostgresSaver
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -28,18 +30,13 @@ def create_checkpointer():
         return MemorySaver()
 
     try:
-        conn = Connection.connect(
-            database_url,
-            autocommit=True,
-            prepare_threshold=None,
-            row_factory=dict_row,
-        )
-        checkpointer = PostgresSaver(conn=conn)
+        conn_pool = get_connection_pool(database_url)
+        checkpointer = ResilientPostgresSaver(conn=conn_pool)
         checkpointer.setup()
-        print("PostgresSaver initialized successfully")
+        print("ResilientPostgresSaver initialized successfully")
         return checkpointer
     except Exception as e:
-        print(f"Warning: Failed to create PostgresSaver ({e}), falling back to MemorySaver")
+        print(f"Warning: Failed to create ResilientPostgresSaver ({e}), falling back to MemorySaver")
         return MemorySaver()
 
 
