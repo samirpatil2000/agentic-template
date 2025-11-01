@@ -2,47 +2,17 @@ import json
 import os
 from typing import Dict, Any
 from langchain_core.messages import BaseMessage
-
-
-class MockLLM:
-    """Mock LLM for testing when OpenAI API key is not available"""
-    
-    def invoke(self, messages):
-        # Create a mock response based on the last message
-        last_message = messages[-1] if messages else None
-        if last_message and hasattr(last_message, 'content'):
-            content = f"Mock LLM response to: {last_message.content}"
-        else:
-            content = "Mock LLM response - no input provided"
-        
-        class MockResponse:
-            def __init__(self, content):
-                self.content = content
-                self.usage = {'total_tokens': 50}
-        
-        return MockResponse(content)
-
+import litellm
 
 class SampleWorkflowNodes:
     """Defines logic for each node in the sample workflow"""
     
     def __init__(self):
-        # Initialize LLM - use OpenAI if API key available, otherwise use mock
-        try:
-            api_key = os.getenv('OPENAI_API_KEY')
-            if api_key:
-                from langchain_openai import ChatOpenAI
-                self.llm = ChatOpenAI(
-                    model="gpt-3.5-turbo",
-                    temperature=0.7,
-                    openai_api_key=api_key
-                )
-            else:
-                print("Warning: OPENAI_API_KEY not found, using mock LLM for testing")
-                self.llm = MockLLM()
-        except ImportError:
-            print("Warning: langchain_openai not available, using mock LLM")
-            self.llm = MockLLM()
+        # Initialize LiteLLM with minimal configuration
+        # Uses environment variables for API keys (OPENAI_API_KEY, GEMINI_API_KEY etc.)
+
+        self.model = "gemini/gemini-1.5-pro"
+        self.temperature = 0.7
 
     def process_input(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """Process and validate user input
@@ -61,7 +31,7 @@ class SampleWorkflowNodes:
         # Create new message to append
         new_message = BaseMessage(
             role="ai",
-            type="update_strategies_node_response",
+            type="starter_node",
             content=json.dumps({"hello": "world"}),
         )
         
@@ -93,12 +63,24 @@ class SampleWorkflowNodes:
             raise ValueError("No messages found in state")
 
         try:
-            response = self.llm.invoke(messages)
+            # Convert LangChain messages to LiteLLM format
+            litellm_messages = []
+            for msg in messages:
+                if hasattr(msg, 'content'):
+                    # Extract role from message or default to 'user'
+                    role = getattr(msg, 'role', 'user')
+                    litellm_messages.append({"role": role, "content": msg.content})
+            
+            response = litellm.completion(
+                model=self.model,
+                messages=litellm_messages,
+                temperature=self.temperature
+            )
 
             final_message = BaseMessage(
                 role="ai",
                 type="next_node_response",
-                content=json.dumps({"final_response": response.content}),
+                content=json.dumps({"final_response": response.choices[0].message.content}),
             )
 
             # Get existing messages and append new one
