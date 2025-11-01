@@ -1,4 +1,3 @@
-import json
 import os
 from typing import Dict, Any
 from langchain_core.messages import BaseMessage
@@ -6,6 +5,8 @@ import litellm
 
 from agents.workflows.sample.prompts import get_system_prompt, get_company_summary_prompt
 from tools.exceptions import Exceptions
+from utils.json_parser import safe_json_parse, safe_json_dumps, validate_json_structure
+from utils.llm_utils import validate_llm_response
 
 
 class SampleWorkflowNodes:
@@ -14,7 +15,6 @@ class SampleWorkflowNodes:
     def __init__(self):
         # Initialize LiteLLM with minimal configuration
         # Uses environment variables for API keys (OPENAI_API_KEY, GEMINI_API_KEY etc.)
-
         self.model = "gemini/gemini-2.5-pro"
         self.temperature = 0.7
 
@@ -30,37 +30,56 @@ class SampleWorkflowNodes:
         messages = state.get("messages", [])
         last_message = messages[-1] if messages else None
 
-        user_input = json.loads(last_message.content) if last_message else {}
+        # Safely parse and validate JSON from last message content
+        user_input = {}
+        if last_message and hasattr(last_message, 'content'):
+            user_input = safe_json_parse(last_message.content)
 
-        company_url = user_input.get("company_url")
+        try:
+            validated_input = validate_json_structure(
+                user_input, 
+                required_fields=["company_url"],
+                optional_fields=["prompt"]
+            )
+            company_url = validated_input["company_url"]
+        except Exception as e:
+            raise ValueError(f"Invalid user input structure: {str(e)}")
 
         litellm_messages = [
             {"role": "system", "content": get_system_prompt()},
             {"role": "user", "content": get_company_summary_prompt(company_url)}
         ]
 
-        response = litellm.completion(
-            model=self.model,
-            api_key=os.environ.get("GEMINI_API_KEY"),
-            messages=litellm_messages,
-            temperature=self.temperature
-        )
+        try:
+            response = litellm.completion(
+                model=self.model,
+                api_key=os.environ.get("GEMINI_API_KEY"),
+                messages=litellm_messages,
+                temperature=self.temperature
+            )
 
-        new_message = BaseMessage(
-            role="ai",
-            type="starter_node",
-            content=json.dumps({"org_context": response.choices[0].message.content}),
-        )
+            # Validate response using utility function
+            response_content = validate_llm_response(response, require_content=True)
+            response_content = safe_json_parse(response_content)
+            new_message = BaseMessage(
+                role="ai",
+                type="fetch_context_and_questions_node",
+                content=safe_json_dumps({"org_context": response_content}),
+            )
+        except Exception as e:
+            print(f"Error calling LLM in fetch_context_and_questions_node: {e}")
+            raise Exceptions.general_exception(500, f"Failed to process company context: {str(e)}")
 
         updated_messages = messages.copy()
         updated_messages.append(new_message)
 
         return {
-            "current_step": "input_processed",
+            "current_step": "fetch_context_and_questions_node",
             "workflow_data": {
                 **state.get("workflow_data", {}),
                 "processed_prompt": user_input.get("prompt")
             },
+            "org_context": response_content,
             "messages": updated_messages
         }
 
@@ -101,10 +120,13 @@ class SampleWorkflowNodes:
                 temperature=self.temperature
             )
 
+            # Validate response using utility function
+            response_content = validate_llm_response(response, require_content=True)
+
             final_message = BaseMessage(
                 role="ai",
                 type="next_node_response",
-                content=json.dumps({"final_response": response.choices[0].message.content}),
+                content=safe_json_dumps({"final_response": response_content}),
             )
 
             # Get existing messages and append new one

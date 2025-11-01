@@ -1,4 +1,6 @@
 import os
+from typing import Dict, Any
+
 from langgraph.graph import StateGraph, END
 from agents.workflows.index import BaseWorkflowInterface, BaseWorkflowState
 from agents.workflows.sample.nodes import SampleWorkflowNodes
@@ -6,8 +8,8 @@ from agents.workflows.sample.nodes import SampleWorkflowNodes
 
 class WorkflowState(BaseWorkflowState):
     """Extended state for Sample Workflow"""
+    org_context: Dict[str, Any] = {}
     pass
-
 
 class SampleWorkflow(BaseWorkflowInterface):
     """Sample workflow implementation demonstrating basic workflow pattern"""
