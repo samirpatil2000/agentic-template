@@ -50,11 +50,11 @@ class SampleWorkflow(BaseWorkflowInterface):
         and defines the flow between nodes ending at END.
         """
         # Add workflow nodes
-        self.graph.add_node("process_input", self.sample_workflow_nodes.process_input)
+        self.graph.add_node("fetch_context_and_questions", self.sample_workflow_nodes.fetch_context_and_questions_node)
         self.graph.add_node("next_node", self.sample_workflow_nodes.next_node)
         
         # Set an entry point
-        self.graph.set_entry_point("process_input")
+        self.graph.set_entry_point("fetch_context_and_questions")
         
-        self.graph.add_edge("process_input", "next_node")
+        self.graph.add_edge("fetch_context_and_questions", "next_node")
         self.graph.add_edge("next_node", END)

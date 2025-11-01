@@ -4,6 +4,7 @@ from typing import Dict, Any
 from langchain_core.messages import BaseMessage
 import litellm
 
+from agents.workflows.sample.prompts import get_system_prompt, get_company_summary_prompt
 from tools.exceptions import Exceptions
 
 
@@ -17,7 +18,7 @@ class SampleWorkflowNodes:
         self.model = "gemini/gemini-2.5-pro"
         self.temperature = 0.7
 
-    def process_input(self, state: Dict[str, Any]) -> Dict[str, Any]:
+    def fetch_context_and_questions_node(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """Process and validate user input
 
         Args:
@@ -31,14 +32,26 @@ class SampleWorkflowNodes:
 
         user_input = json.loads(last_message.content) if last_message else {}
 
-        # Create new message to append
+        company_url = user_input.get("company_url")
+
+        litellm_messages = [
+            {"role": "system", "content": get_system_prompt()},
+            {"role": "user", "content": get_company_summary_prompt(company_url)}
+        ]
+
+        response = litellm.completion(
+            model=self.model,
+            api_key=os.environ.get("GEMINI_API_KEY"),
+            messages=litellm_messages,
+            temperature=self.temperature
+        )
+
         new_message = BaseMessage(
             role="ai",
             type="starter_node",
-            content=json.dumps({"hello": "world"}),
+            content=json.dumps({"org_context": response.choices[0].message.content}),
         )
-        
-        # Get existing messages and append new one
+
         updated_messages = messages.copy()
         updated_messages.append(new_message)
 
