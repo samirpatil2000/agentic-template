@@ -11,7 +11,7 @@ from utils.llm_utils import validate_llm_response
 
 class SampleWorkflowNodes:
     """Defines logic for each node in the sample workflow"""
-    
+
     def __init__(self):
         # Initialize LiteLLM with minimal configuration
         # Uses environment variables for API keys (OPENAI_API_KEY, GEMINI_API_KEY etc.)
@@ -37,7 +37,7 @@ class SampleWorkflowNodes:
 
         try:
             validated_input = validate_json_structure(
-                user_input, 
+                user_input,
                 required_fields=["company_url"],
                 optional_fields=["prompt"]
             )
@@ -55,7 +55,12 @@ class SampleWorkflowNodes:
                 model=self.model,
                 api_key=os.environ.get("GEMINI_API_KEY"),
                 messages=litellm_messages,
-                temperature=self.temperature
+                temperature=self.temperature,
+                extra_body={
+                    "tools": [
+                        {"google_search": {}}
+                    ]
+                }
             )
 
             # Validate response using utility function
@@ -64,7 +69,7 @@ class SampleWorkflowNodes:
             new_message = BaseMessage(
                 role="ai",
                 type="fetch_context_and_questions_node",
-                content=safe_json_dumps({"org_context": response_content}),
+                content=safe_json_dumps({"org_context": response_content})
             )
         except Exception as e:
             print(f"Error calling LLM in fetch_context_and_questions_node: {e}")
@@ -141,7 +146,7 @@ class SampleWorkflowNodes:
                     "llm_response": response.choices[0].message.content
                 }
             }
-            
+
         except Exception as e:
             print(f"Error in next_node: {e}")
             raise Exceptions.general_exception(500, str(e))

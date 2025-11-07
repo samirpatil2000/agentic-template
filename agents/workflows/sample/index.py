@@ -5,6 +5,10 @@ from langgraph.graph import StateGraph, END
 from agents.workflows.index import BaseWorkflowInterface, BaseWorkflowState
 from agents.workflows.sample.nodes import SampleWorkflowNodes
 
+from langfuse.langchain import CallbackHandler
+
+# Initialize Langfuse CallbackHandler for Langchain (tracing)
+langfuse_handler = CallbackHandler()
 
 class WorkflowState(BaseWorkflowState):
     """Extended state for Sample Workflow"""
@@ -40,7 +44,7 @@ class SampleWorkflow(BaseWorkflowInterface):
             checkpointer=self.checkpointer,
             interrupt_after=[],
             interrupt_before=["next_node"]
-        )
+        ).with_config({"callbacks": [langfuse_handler]})
 
         self._save_workflow_diagram(os.path.dirname(__file__))
 
