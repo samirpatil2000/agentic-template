@@ -6,7 +6,7 @@ import litellm
 from agents.workflows.sample.prompts import get_system_prompt, get_company_summary_prompt
 from tools.exceptions import Exceptions
 from utils.json_parser import safe_json_parse, safe_json_dumps, validate_json_structure
-from utils.llm_utils import validate_llm_response
+from utils.llm_utils import validate_llm_response, call_litellm_with_retry
 
 
 class SampleWorkflowNodes:
@@ -51,7 +51,8 @@ class SampleWorkflowNodes:
         ]
 
         try:
-            response = litellm.completion(
+            retries = int(os.getenv("LITELLM_MAX_RETRIES", "3"))
+            response = call_litellm_with_retry(
                 model=self.model,
                 api_key=os.environ.get("GEMINI_API_KEY"),
                 messages=litellm_messages,
@@ -60,7 +61,8 @@ class SampleWorkflowNodes:
                     "tools": [
                         {"google_search": {}}
                     ]
-                }
+                },
+                max_retries=retries,
             )
 
             # Validate response using utility function
@@ -118,11 +120,13 @@ class SampleWorkflowNodes:
                 {"role": "user", "content": "What is the capital of France?"}
             ]
 
-            response = litellm.completion(
+            retries = int(os.getenv("LITELLM_MAX_RETRIES", "3"))
+            response = call_litellm_with_retry(
                 model=self.model,
                 api_key=os.environ.get("GEMINI_API_KEY"),
                 messages=litellm_messages,
-                temperature=self.temperature
+                temperature=self.temperature,
+                max_retries=retries,
             )
 
             # Validate response using utility function

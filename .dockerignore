@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pytest_cache/
+*.coverage
+.coverage*
+.pytype/
+.mypy_cache/
+
+# Virtual envs
+.venv/
+venv/
+
+# Git
+.git/
+.gitignore
+
+# OS files
+.DS_Store
+
+# Editor
+.idea/
+.vscode/
+
+# Node / front-end (if any)
+node_modules/
+
+# Local data and caches
+*.log
+logs/
+
+# Secrets and local configs (we will mount or use env_file instead)
+.env
+keys/

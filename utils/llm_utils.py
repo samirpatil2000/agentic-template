@@ -1,7 +1,8 @@
 """LLM response validation and processing utilities"""
 
 import logging
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
+import litellm
 
 logger = logging.getLogger(__name__)
 
@@ -12,7 +13,7 @@ class LLMResponseError(Exception):
 
 
 def validate_llm_response(
-    response: Any, 
+    response: Any,
     require_content: bool = True,
     min_content_length: int = 1
 ) -> str:
@@ -58,3 +59,58 @@ def validate_llm_response(
             )
 
     return content or ""
+
+
+def _is_transient_error(exc: Exception) -> bool:
+    """Best-effort check if exception is likely transient/retryable."""
+    transient_names = (
+        'RateLimitError', 'APITimeoutError', 'Timeout', 'ServiceUnavailableError',
+        'APIConnectionError', 'InternalServerError', 'GatewayTimeout', 'TooManyRequests'
+    )
+    name = exc.__class__.__name__
+    if any(n in name for n in transient_names):
+        return True
+    msg = str(exc).lower()
+    hints = (
+        'rate limit', 'retry', 'timeout', 'timed out', 'unavailable', 'temporarily',
+        'overloaded', 'connection reset', 'connection aborted', '502', '503', '504'
+    )
+    return any(h in msg for h in hints)
+
+
+def call_litellm_with_retry(
+    *,
+    model: str,
+    api_key: Optional[str],
+    messages: Any,
+    temperature: Optional[float] = None,
+    extra_body: Optional[Dict[str, Any]] = None,
+    max_retries: int = 3,
+    **kwargs: Any,
+):
+    """Wrapper around litellm.completion with retry.
+
+    Args mirror litellm.completion. Pass through any extra kwargs as-needed.
+    """
+    attempt = 0
+    while True:
+        try:
+            return litellm.completion(
+                model=model,
+                api_key=api_key,
+                messages=messages,
+                temperature=temperature,
+                extra_body=extra_body,
+                **kwargs,
+            )
+        except Exception as e:
+            attempt += 1
+            retryable = _is_transient_error(e)
+            last_attempt = attempt > max_retries
+            logger.warning(
+                "LiteLLM call failed (attempt %s/%s, retryable=%s): %s",
+                attempt, max_retries, retryable, e,
+                exc_info=False,
+            )
+            if last_attempt or not retryable:
+                raise

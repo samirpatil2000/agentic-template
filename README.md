@@ -11,6 +11,7 @@ A starter template for building AI-driven workflow orchestration systems using F
 - PostgreSQL-backed workflow persistence
 - Support for workflow interrupts and continuations
 - Non-blocking concurrent workflow execution using ThreadPoolExecutor
+- LLM response validation and retry utilities with LiteLLM integration
 
 ## Prerequisites
 
@@ -53,17 +54,100 @@ uvicorn app:app --reload --port 8080
 uvicorn app:app --reload --port $PORT --host $HOST
 ```
 
-2. Access the API at:
-```
-http://localhost:<port>
+# 🧩 API Endpoints
+
+#### `GET /`
+**Description:**  
+Retrieve API information and a list of available endpoints.
+
+**Response Example:**
+```json
+{
+  "version": "1.0",
+  "endpoints": [
+    "/workflows/{workflow_name}",
+    "/workflows/{workflow_name}/{thread_id}"
+  ]
+}
 ```
 
-## API Endpoints
+---
 
-- `GET /` — API information and available endpoints
-- `POST /workflows/{workflow_name}` — Start a new workflow
-- `POST /workflows/{workflow_name}/{thread_id}` — Continue an existing workflow
-- `GET /workflows/{workflow_name}/{thread_id}` — Get workflow state
+#### `POST /workflows/{workflow_name}`
+**Description:**  
+Start a new workflow.
+
+**Request Body:**
+```json
+{
+  "content": "{\"company_url\": \"https://www.github.com/\"}",
+  "type": "text",
+  "role": "user"
+}
+```
+
+**Response Example:**
+```json
+{
+  "thread_id": "abc123",
+  "status": "started",
+  "workflow_name": "example_workflow"
+}
+```
+
+---
+
+#### `POST /workflows/{workflow_name}/{thread_id}`
+**Description:**  
+Continue an existing workflow.
+
+**Request Body:**
+```json
+{
+  "content": "{\"company_url\": \"https://www.github.com/\"}",
+  "type": "text",
+  "role": "user"
+}
+```
+
+**Response Example:**
+```json
+{
+  "thread_id": "abc123",
+  "status": "in_progress",
+  "message": "Workflow updated successfully"
+}
+```
+
+---
+
+#### `GET /workflows/{workflow_name}/{thread_id}`
+**Description:**  
+Retrieve the current state of a workflow thread.
+
+**Response Example:**
+```json
+{
+  "thread_id": "abc123",
+  "workflow_name": "example_workflow",
+  "status": "completed",
+  "result": {
+    "summary": "Workflow execution finished successfully"
+  }
+}
+```
+
+## Roadmap
+
+Planned features and improvements:
+
+- [ ] Add logging and log rotation in file
+- [ ] Add authentication
+- [ ] Add Prometheus metrics
+- [ ] Add tool calling example
+- [ ] Langfuse middlewares for LLM observability
+- [ ] Add rate limiting
+- [ ] Replace sample agent with production-ready agent/chatbot (e.g., email agent)
 
 ## Notes
 
