@@ -6,8 +6,8 @@ from tools.logger_config import logger
 def get_connection_pool(db_url: str):
     connection_kwargs = {
         "autocommit": True,
-        "prepare_threshold": 0,
-        "application_name": "cosmos",
+        "prepare_threshold": None,
+        "application_name": "agents",
     }
 
     conn_pool = ConnectionPool(
