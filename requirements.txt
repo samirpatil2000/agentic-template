@@ -13,3 +13,4 @@ psycopg_pool>=3.1.0
 langgraph-checkpoint-postgres
 google-auth>=2.0.0
 google-cloud-aiplatform>=1.0.0
+langfuse==3.10.0
