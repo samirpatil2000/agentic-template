@@ -3,6 +3,7 @@ import time
 from datetime import datetime, timezone
 
 from fastapi import FastAPI
+from agents.workflows.index import close_checkpointer
 from controllers.workflow_controller import workflow_router
 
 app = FastAPI(
@@ -13,6 +14,11 @@ app = FastAPI(
 
 # Include workflow router
 app.include_router(workflow_router)
+
+
+@app.on_event("shutdown")
+def shutdown_event() -> None:
+    close_checkpointer()
 
 
 @app.get("/")

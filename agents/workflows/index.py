@@ -55,6 +55,28 @@ def create_checkpointer():
             return MemorySaver()
 
 
+def close_checkpointer() -> None:
+    """Close any persistent checkpointer resources."""
+    global _checkpointer_instance
+    with _checkpointer_lock:
+        checkpointer = _checkpointer_instance
+        _checkpointer_instance = None
+
+    if isinstance(checkpointer, ResilientPostgresSaver):
+        conn = getattr(checkpointer, "conn", None)
+        if conn is None:
+            return
+        try:
+            conn.close()
+        except Exception as e:
+            print(f"Warning: Failed to close checkpointer connection ({e})")
+
+
+def reset_checkpointer() -> None:
+    """Reset the cached checkpointer and close any resources."""
+    close_checkpointer()
+
+
 class BaseWorkflowState(TypedDict):
     """Base state structure for all workflows"""
     messages: list[BaseMessage]
