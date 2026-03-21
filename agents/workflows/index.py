@@ -60,16 +60,16 @@ def close_checkpointer() -> None:
     global _checkpointer_instance
     with _checkpointer_lock:
         checkpointer = _checkpointer_instance
-        _checkpointer_instance = None
-
-    if isinstance(checkpointer, ResilientPostgresSaver):
-        conn = getattr(checkpointer, "conn", None)
-        if conn is None:
+        if checkpointer is None:
             return
         try:
-            conn.close()
+            close_method = getattr(checkpointer, "close", None)
+            if callable(close_method):
+                close_method()
         except Exception as e:
             print(f"Warning: Failed to close checkpointer connection ({e})")
+        finally:
+            _checkpointer_instance = None
 
 
 def reset_checkpointer() -> None:

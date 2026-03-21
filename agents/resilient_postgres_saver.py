@@ -79,3 +79,9 @@ class ResilientPostgresSaver(PostgresSaver):
 
     def put_writes(self, *args, **kwargs):
         return self._execute_with_retries(super().put_writes, *args, **kwargs)
+
+    def close(self) -> None:
+        try:
+            self.conn.close()
+        except Exception as e:
+            logging.exception(f"Error closing connection {e}", exc_info=True)

@@ -1,25 +1,27 @@
 import os
 import time
 from datetime import datetime, timezone
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from agents.workflows.index import close_checkpointer
 from controllers.workflow_controller import workflow_router
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    yield
+    close_checkpointer()
+
+
 app = FastAPI(
     title="FastAPI Workflow Orchestration System",
     description="A workflow orchestration system built with FastAPI",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan,
 )
 
 # Include workflow router
 app.include_router(workflow_router)
-
-
-@app.on_event("shutdown")
-def shutdown_event() -> None:
-    close_checkpointer()
-
 
 @app.get("/")
 def hello_world():
