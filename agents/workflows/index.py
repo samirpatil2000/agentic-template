@@ -15,6 +15,7 @@ from psycopg.rows import dict_row
 from agents.postgres import get_connection_pool
 from agents.resilient_postgres_saver import ResilientPostgresSaver
 from dotenv import load_dotenv
+from tools.logger_config import logger as logging
 
 load_dotenv()
 
@@ -39,7 +40,7 @@ def create_checkpointer():
 
         database_url = os.getenv("DATABASE_URL")
         if not database_url:
-            print("Warning: DATABASE_URL not set, falling back to MemorySaver")
+            logging.warning("DATABASE_URL not set, falling back to MemorySaver")
             _checkpointer_instance = MemorySaver()
             return _checkpointer_instance
 
@@ -47,10 +48,13 @@ def create_checkpointer():
             conn_pool = get_connection_pool(database_url)
             _checkpointer_instance = ResilientPostgresSaver(conn=conn_pool)
             _checkpointer_instance.setup()
-            print("ResilientPostgresSaver initialized successfully")
+            logging.info("ResilientPostgresSaver initialized successfully")
             return _checkpointer_instance
         except Exception as e:
-            print(f"Warning: Failed to create ResilientPostgresSaver ({e}), falling back to MemorySaver")
+            logging.warning(
+                "Failed to create ResilientPostgresSaver (%s), falling back to MemorySaver",
+                e,
+            )
             # Do not cache the fallback here so that future calls can retry Postgres initialization
             return MemorySaver()
 
@@ -67,7 +71,7 @@ def close_checkpointer() -> None:
             if callable(close_method):
                 close_method()
         except Exception as e:
-            print(f"Warning: Failed to close checkpointer connection ({e})")
+            logging.warning("Failed to close checkpointer connection (%s)", e)
         finally:
             _checkpointer_instance = None
 
