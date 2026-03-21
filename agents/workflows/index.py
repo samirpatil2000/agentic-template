@@ -73,7 +73,11 @@ def close_checkpointer() -> None:
 
 
 def reset_checkpointer() -> None:
-    """Reset the cached checkpointer and close any resources."""
+    """Reset the cached checkpointer and close any resources.
+
+    This is an alias for close_checkpointer to preserve a clear API boundary
+    if reset logic needs to expand in the future.
+    """
     close_checkpointer()
 
 

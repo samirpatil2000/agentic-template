@@ -83,5 +83,5 @@ class ResilientPostgresSaver(PostgresSaver):
     def close(self) -> None:
         try:
             self.conn.close()
-        except Exception as e:
-            logging.exception(f"Error closing connection {e}", exc_info=True)
+        except Exception:
+            logging.exception("Error closing connection", exc_info=True)
