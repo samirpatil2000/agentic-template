@@ -6,6 +6,7 @@ from agents.workflows.index import WorkflowMessage
 from concurrent.futures import ThreadPoolExecutor
 import asyncio
 from functools import partial
+from threading import Lock
 
 
 class WorkflowRequest(BaseModel):
@@ -17,13 +18,16 @@ class WorkflowRequest(BaseModel):
 workflow_router = APIRouter(prefix="/workflows", tags=["workflows"])
 
 _orchestrator: Optional[WorkflowOrchestrator] = None
+_orchestrator_lock = Lock()
 executor = ThreadPoolExecutor(max_workers=4)
 
 
 def get_orchestrator() -> WorkflowOrchestrator:
     global _orchestrator
     if _orchestrator is None:
-        _orchestrator = WorkflowOrchestrator()
+        with _orchestrator_lock:
+            if _orchestrator is None:
+                _orchestrator = WorkflowOrchestrator()
     return _orchestrator
 
 

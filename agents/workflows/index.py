@@ -1,7 +1,8 @@
 import os
 from abc import ABC, abstractmethod
-from typing import TypedDict, Any, Dict, Optional
+from typing import TypedDict, Any, Dict, Optional, Union
 from dataclasses import dataclass
+from threading import Lock
 
 from langchain_core.runnables import RunnableConfig
 from langchain_core.runnables.graph import MermaidDrawMethod
@@ -17,7 +18,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-_checkpointer_instance = None
+_checkpointer_instance: Optional[Union[MemorySaver, ResilientPostgresSaver]] = None
+_checkpointer_lock = Lock()
 
 
 def create_checkpointer():
@@ -26,27 +28,31 @@ def create_checkpointer():
     if _checkpointer_instance is not None:
         return _checkpointer_instance
 
-    database_type = os.getenv("DATABASE_TYPE", "inmemory").lower()
-    if database_type != "postgres":
-        _checkpointer_instance = MemorySaver()
-        return _checkpointer_instance
+    with _checkpointer_lock:
+        if _checkpointer_instance is not None:
+            return _checkpointer_instance
 
-    database_url = os.getenv("DATABASE_URL")
-    if not database_url:
-        print("Warning: DATABASE_URL not set, falling back to MemorySaver")
-        _checkpointer_instance = MemorySaver()
-        return _checkpointer_instance
+        database_type = os.getenv("DATABASE_TYPE", "inmemory").lower()
+        if database_type != "postgres":
+            _checkpointer_instance = MemorySaver()
+            return _checkpointer_instance
 
-    try:
-        conn_pool = get_connection_pool(database_url)
-        _checkpointer_instance = ResilientPostgresSaver(conn=conn_pool)
-        _checkpointer_instance.setup()
-        print("ResilientPostgresSaver initialized successfully")
-        return _checkpointer_instance
-    except Exception as e:
-        print(f"Warning: Failed to create ResilientPostgresSaver ({e}), falling back to MemorySaver")
-        _checkpointer_instance = MemorySaver()
-        return _checkpointer_instance
+        database_url = os.getenv("DATABASE_URL")
+        if not database_url:
+            print("Warning: DATABASE_URL not set, falling back to MemorySaver")
+            _checkpointer_instance = MemorySaver()
+            return _checkpointer_instance
+
+        try:
+            conn_pool = get_connection_pool(database_url)
+            _checkpointer_instance = ResilientPostgresSaver(conn=conn_pool)
+            _checkpointer_instance.setup()
+            print("ResilientPostgresSaver initialized successfully")
+            return _checkpointer_instance
+        except Exception as e:
+            print(f"Warning: Failed to create ResilientPostgresSaver ({e}), falling back to MemorySaver")
+            _checkpointer_instance = MemorySaver()
+            return _checkpointer_instance
 
 
 class BaseWorkflowState(TypedDict):
