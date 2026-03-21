@@ -51,8 +51,8 @@ def create_checkpointer():
             return _checkpointer_instance
         except Exception as e:
             print(f"Warning: Failed to create ResilientPostgresSaver ({e}), falling back to MemorySaver")
-            _checkpointer_instance = MemorySaver()
-            return _checkpointer_instance
+            # Do not cache the fallback here so that future calls can retry Postgres initialization
+            return MemorySaver()
 
 
 class BaseWorkflowState(TypedDict):
