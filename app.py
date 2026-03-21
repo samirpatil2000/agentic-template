@@ -1,5 +1,6 @@
 import os
 import time
+import asyncio
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 
@@ -10,7 +11,7 @@ from controllers.workflow_controller import workflow_router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     yield
-    close_checkpointer()
+    await asyncio.to_thread(close_checkpointer)
 
 
 app = FastAPI(
