@@ -5,7 +5,6 @@ from agents.orchestrator import WorkflowOrchestrator
 from agents.workflows.index import WorkflowMessage
 from concurrent.futures import ThreadPoolExecutor
 import asyncio
-from functools import partial
 from threading import Lock
 
 
@@ -43,7 +42,6 @@ async def start_workflow(workflow_name: str, request_data: WorkflowRequest) -> D
         JSON response with workflow state and thread_id
     """
     try:
-        orchestrator = get_orchestrator()
         message = WorkflowMessage(
             content=request_data.content,
             type=request_data.type,
@@ -52,7 +50,9 @@ async def start_workflow(workflow_name: str, request_data: WorkflowRequest) -> D
         
         # Start workflow using executor to avoid blocking
         loop = asyncio.get_event_loop()
-        start_func = partial(orchestrator.start, workflow_name, message)
+        def start_func() -> Dict[str, Any]:
+            orchestrator = get_orchestrator()
+            return orchestrator.start(workflow_name, message)
         result = await loop.run_in_executor(executor, start_func)
         
         # Return appropriate status code based on result
@@ -95,7 +95,6 @@ async def continue_workflow(workflow_name: str, thread_id: str, request_data: Wo
         JSON response with updated workflow state
     """
     try:
-        orchestrator = get_orchestrator()
         # Validate thread_id
         if not thread_id or not thread_id.strip():
             raise HTTPException(
@@ -116,7 +115,9 @@ async def continue_workflow(workflow_name: str, thread_id: str, request_data: Wo
         
         # Continue workflow using executor to avoid blocking
         loop = asyncio.get_event_loop()
-        chat_func = partial(orchestrator.chat, workflow_name, thread_id, message)
+        def chat_func() -> Dict[str, Any]:
+            orchestrator = get_orchestrator()
+            return orchestrator.chat(workflow_name, thread_id, message)
         result = await loop.run_in_executor(executor, chat_func)
         
         # Return appropriate response based on result
@@ -160,7 +161,6 @@ async def get_workflow_state(workflow_name: str, thread_id: str) -> Dict[str, An
         JSON response with current workflow state
     """
     try:
-        orchestrator = get_orchestrator()
         # Validate thread_id
         if not thread_id or not thread_id.strip():
             raise HTTPException(
@@ -174,7 +174,9 @@ async def get_workflow_state(workflow_name: str, thread_id: str) -> Dict[str, An
         
         # Get workflow state using executor to avoid blocking
         loop = asyncio.get_event_loop()
-        get_state_func = partial(orchestrator.get_state, workflow_name, thread_id)
+        def get_state_func() -> Dict[str, Any]:
+            orchestrator = get_orchestrator()
+            return orchestrator.get_state(workflow_name, thread_id)
         result = await loop.run_in_executor(executor, get_state_func)
         
         # Return appropriate response based on result
@@ -214,10 +216,11 @@ async def get_available_workflows() -> Dict[str, Any]:
         JSON response with list of available workflow names
     """
     try:
-        orchestrator = get_orchestrator()
         # Get available workflows using executor to avoid blocking
         loop = asyncio.get_event_loop()
-        get_workflows_func = partial(orchestrator.get_available_workflows)
+        def get_workflows_func() -> List[str]:
+            orchestrator = get_orchestrator()
+            return orchestrator.get_available_workflows()
         workflows = await loop.run_in_executor(executor, get_workflows_func)
         
         return {
