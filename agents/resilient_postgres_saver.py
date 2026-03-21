@@ -83,5 +83,5 @@ class ResilientPostgresSaver(PostgresSaver):
     def close(self) -> None:
         try:
             self.conn.close()
-        except Exception:
-            logging.exception("Failed to close checkpointer connection")
+        except Exception as e:
+            logging.exception("Failed to close checkpointer connection (%s)", e)
