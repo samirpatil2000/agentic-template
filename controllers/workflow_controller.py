@@ -16,8 +16,15 @@ class WorkflowRequest(BaseModel):
 
 workflow_router = APIRouter(prefix="/workflows", tags=["workflows"])
 
-orchestrator = WorkflowOrchestrator()
+_orchestrator: Optional[WorkflowOrchestrator] = None
 executor = ThreadPoolExecutor(max_workers=4)
+
+
+def get_orchestrator() -> WorkflowOrchestrator:
+    global _orchestrator
+    if _orchestrator is None:
+        _orchestrator = WorkflowOrchestrator()
+    return _orchestrator
 
 
 @workflow_router.post("/{workflow_name}")
@@ -32,6 +39,7 @@ async def start_workflow(workflow_name: str, request_data: WorkflowRequest) -> D
         JSON response with workflow state and thread_id
     """
     try:
+        orchestrator = get_orchestrator()
         message = WorkflowMessage(
             content=request_data.content,
             type=request_data.type,
@@ -83,6 +91,7 @@ async def continue_workflow(workflow_name: str, thread_id: str, request_data: Wo
         JSON response with updated workflow state
     """
     try:
+        orchestrator = get_orchestrator()
         # Validate thread_id
         if not thread_id or not thread_id.strip():
             raise HTTPException(
@@ -147,6 +156,7 @@ async def get_workflow_state(workflow_name: str, thread_id: str) -> Dict[str, An
         JSON response with current workflow state
     """
     try:
+        orchestrator = get_orchestrator()
         # Validate thread_id
         if not thread_id or not thread_id.strip():
             raise HTTPException(
@@ -200,6 +210,7 @@ async def get_available_workflows() -> Dict[str, Any]:
         JSON response with list of available workflow names
     """
     try:
+        orchestrator = get_orchestrator()
         # Get available workflows using executor to avoid blocking
         loop = asyncio.get_event_loop()
         get_workflows_func = partial(orchestrator.get_available_workflows)

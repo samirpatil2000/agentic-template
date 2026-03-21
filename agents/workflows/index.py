@@ -17,27 +17,36 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+_checkpointer_instance = None
+
 
 def create_checkpointer():
     """Create checkpointer based on DATABASE_TYPE environment variable"""
+    global _checkpointer_instance
+    if _checkpointer_instance is not None:
+        return _checkpointer_instance
+
     database_type = os.getenv("DATABASE_TYPE", "inmemory").lower()
     if database_type != "postgres":
-        return MemorySaver()
+        _checkpointer_instance = MemorySaver()
+        return _checkpointer_instance
 
     database_url = os.getenv("DATABASE_URL")
     if not database_url:
         print("Warning: DATABASE_URL not set, falling back to MemorySaver")
-        return MemorySaver()
+        _checkpointer_instance = MemorySaver()
+        return _checkpointer_instance
 
     try:
         conn_pool = get_connection_pool(database_url)
-        checkpointer = ResilientPostgresSaver(conn=conn_pool)
-        checkpointer.setup()
+        _checkpointer_instance = ResilientPostgresSaver(conn=conn_pool)
+        _checkpointer_instance.setup()
         print("ResilientPostgresSaver initialized successfully")
-        return checkpointer
+        return _checkpointer_instance
     except Exception as e:
         print(f"Warning: Failed to create ResilientPostgresSaver ({e}), falling back to MemorySaver")
-        return MemorySaver()
+        _checkpointer_instance = MemorySaver()
+        return _checkpointer_instance
 
 
 class BaseWorkflowState(TypedDict):
