@@ -7,10 +7,18 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from agents.workflows.index import close_checkpointer
 from controllers.workflow_controller import workflow_router
+from tools.logger_config import logger
+from middleware.logging_middlewares import (
+    LoggingMiddleware,
+    AddRequestContextMiddleware,
+    TraceIDMiddleware,
+)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    logger.info("Application starting up...")
     yield
+    logger.info("Application shutting down...")
     await asyncio.to_thread(close_checkpointer)
 
 
@@ -20,6 +28,11 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+# Register logging middlewares (applied in reverse order of definition)
+app.add_middleware(LoggingMiddleware)
+app.add_middleware(AddRequestContextMiddleware)
+app.add_middleware(TraceIDMiddleware)
 
 # Include workflow router
 app.include_router(workflow_router)

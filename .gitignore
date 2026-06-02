@@ -3,3 +3,6 @@
 /.idea
 /keys
 *workflow-diagram.png
+logs/
+*.log
+**/__pycache__/**
