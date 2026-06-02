@@ -1,0 +1,54 @@
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+  log_level: debug
+
+common:
+  ring:
+    instance_addr: 127.0.0.1
+    kvstore:
+      store: memberlist
+  replication_factor: 1
+  path_prefix: /loki
+
+schema_config:
+  configs:
+    - from: 2020-05-15
+      store: tsdb
+      object_store: ${LOKI_OBJECT_STORE:-filesystem}
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+storage_config:
+  tsdb_shipper:
+    active_index_directory: /loki/index
+    cache_location: /loki/index_cache
+  aws:
+    s3: ${LOKI_S3_BUCKET}
+    access_key_id: ${LOKI_BUCKET_ACCESS_KEY_ID}
+    secret_access_key: ${LOKI_BUCKET_SECRET_ACCESS_KEY}
+    region: ${LOKI_BUCKET_REGION}
+    s3forcepathstyle: true
+  gcs:
+    bucket_name: ${LOKI_GS_BUCKET}
+
+limits_config:
+  ingestion_rate_mb: 20
+  ingestion_burst_size_mb: 40
+  max_global_streams_per_user: 2000
+  max_streams_per_user: 500
+  max_entries_limit_per_query: ${MAX_ENTRIES_LIMIT_PER_QUERY:-5000}
+
+compactor:
+  working_directory: /loki/boltdb-shipper-compactor
+
+query_range:
+  align_queries_with_step: true
+  max_retries: 5
+
+table_manager:
+  retention_deletes_enabled: true
+  retention_period: 720h

@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - '9095:9090'
+    restart: always
+    networks:
+      - log-network
+
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    env_file:
+      - .env
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS:-/app/keys/default/gcp-bucket-sa.json}
+    ports:
+      - "3100:3100"
+    command:
+      - -config.file=/etc/loki/local-config.yaml
+      - -config.expand-env=true
+    volumes:
+      - loki_data:/loki
+      - ./loki-config.yml:/etc/loki/local-config.yaml:ro
+      - ../keys:/app/keys:ro
+    restart: always
+    networks:
+      - log-network
+
+networks:
+  log-network:
+    external: true
+
+volumes:
+  loki_data:
+  prometheus_data:

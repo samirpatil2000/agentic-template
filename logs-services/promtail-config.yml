@@ -1,0 +1,34 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+  log_level: info
+
+positions:
+  filename: /tmp/positions.yaml
+  sync_period: 10s
+
+clients:
+  - url: ${LOKI_PUSH_URL}
+    basic_auth:
+      username: ${PROMTAIL_BASIC_AUTH_USERNAME}
+      password: ${PROMTAIL_BASIC_AUTH_PASSWORD}
+    batchwait: 5s
+    batchsize: 1048576
+    follow_redirects: true
+    backoff_config:
+      min_period: 500ms
+      max_period: 5s
+      max_retries: 10
+
+scrape_configs:
+  - job_name: argon_logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: "argon_logs"
+          __path__: "/var/log/argon/logs.log"
+    relabel_configs:
+      - source_labels: [__path__]
+        regex: '.*\.gz$'
+        action: drop

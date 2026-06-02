@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  promtail:
+    image: grafana/promtail:latest
+    container_name: promtail
+    volumes:
+      - ../logs:/var/log/argon
+      - ./promtail-config.yml:/etc/promtail/config.yml:ro
+    restart: always
+    env_file:
+      - .env
+    environment:
+      - LOKI_PUSH_URL=${LOKI_PUSH_URL:-http://loki:3100/loki/api/v1/push}
+      - PROMTAIL_BASIC_AUTH_USERNAME=${PROMTAIL_BASIC_AUTH_USERNAME:-admin}
+      - PROMTAIL_BASIC_AUTH_PASSWORD=${PROMTAIL_BASIC_AUTH_PASSWORD:-admin}
+    command:
+      - -config.file=/etc/promtail/config.yml
+      - -config.expand-env=true
+    networks:
+      - log-network
+    ports:
+      - "9080:9080"
+
+networks:
+  log-network:
+    external: true
